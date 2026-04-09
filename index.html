@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Vendas</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI';background:#0f172a;color:#e2e8f0;padding:10px}
+.container{max-width:1200px;margin:auto;background:#111827;border-radius:16px;padding:15px}
+.header{text-align:center;margin-bottom:15px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.card{background:#1f2937;padding:15px;border-radius:12px}
+input,select,textarea{width:100%;padding:10px;margin-top:5px;background:#111827;border:1px solid #374151;color:white;border-radius:8px}
+button{padding:12px;border:none;border-radius:8px;background:#10b981;color:white;font-weight:bold;cursor:pointer;width:100%}
+.tabs{display:flex;margin-bottom:10px}
+.tabs button{flex:1;background:#1f2937}
+.tabs button.active{background:#10b981}
+.sale{background:#111827;padding:15px;margin-top:10px;border-radius:10px;position:relative}
+.delete{position:absolute;right:10px;top:10px;background:red;border:none;color:white;border-radius:50%;width:30px;height:30px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat{background:#111827;padding:10px;border-radius:10px;text-align:center}
+@media(max-width:768px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>💰 Dashboard</h1></div>
+<div class="grid">
+
+<div class="card">
+<h2>Nova Venda</h2>
+<form id="form">
+<input type="date" id="date" required>
+<input type="number" id="price" placeholder="Vendido" required>
+<input type="number" id="cost" placeholder="Custo" required>
+<input type="number" id="expense" placeholder="Insumos">
+<textarea id="desc" placeholder="Descrição"></textarea>
+<button>Salvar</button>
+</form>
+</div>
+
+<div class="card">
+<div class="tabs">
+<button class="active" onclick="app.tab(event,'dash')">Dashboard</button>
+<button onclick="app.tab(event,'list')">Extrato</button>
+</div>
+
+<div id="dash">
+<select id="dashFilter"></select>
+<div class="stats" id="stats"></div>
+</div>
+
+<div id="list" style="display:none">
+<select id="filter"></select>
+<div id="sales"></div>
+</div>
+
+</div>
+</div>
+</div>
+
+<script>
+// SERVICE WORKER REGISTER
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('sw.js')
+}
+
+class App{
+constructor(){
+this.sales=JSON.parse(localStorage.getItem('sales')||'[]')
+this.init()
+window.app=this
+}
+init(){
+document.getElementById('form').onsubmit=(e)=>{e.preventDefault();this.add()}
+this.render()
+}
+add(){
+let s={id:Date.now(),date:date.value,price:+price.value,cost:+cost.value,expense:+expense.value||0,desc:desc.value}
+s.profit=s.price-s.cost-s.expense
+s.month=new Date(s.date).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})
+this.sales.unshift(s)
+this.save();this.render();form.reset()
+}
+delete(id){if(confirm('Excluir?')){this.sales=this.sales.filter(s=>s.id!==id);this.save();this.render()}}
+save(){localStorage.setItem('sales',JSON.stringify(this.sales))}
+tab(e,t){document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');dash.style.display=t==='dash'?'block':'none';list.style.display=t==='list'?'block':'none'}
+getFilteredData(id){let f=document.getElementById(id).value;return f?this.sales.filter(s=>s.month===f):this.sales}
+render(){this.renderStats();this.renderList();this.renderFilter();this.renderDashFilter()}
+renderStats(){let data=this.getFilteredData('dashFilter');let total=data.reduce((a,b)=>a+b.price,0);let profit=data.reduce((a,b)=>a+b.profit,0);stats.innerHTML=`<div class='stat'>Vendas<br>${data.length}</div><div class='stat'>Faturamento<br>R$ ${total.toFixed(2)}</div><div class='stat'>Lucro<br>R$ ${profit.toFixed(2)}</div><div class='stat'>%<br>${total?((profit/total)*100).toFixed(1):0}%</div>`}
+renderFilter(){let m=[...new Set(this.sales.map(s=>s.month))];filter.innerHTML='<option value="">Todos</option>';m.forEach(x=>filter.innerHTML+=`<option>${x}</option>`);filter.onchange=()=>this.renderList()}
+renderDashFilter(){let m=[...new Set(this.sales.map(s=>s.month))];dashFilter.innerHTML='<option value="">Todos</option>';m.forEach(x=>dashFilter.innerHTML+=`<option>${x}</option>`);dashFilter.onchange=()=>this.renderStats()}
+renderList(){let data=this.getFilteredData('filter');sales.innerHTML=data.length?data.map(s=>`<div class='sale'><button class='delete' onclick='app.delete(${s.id})'>x</button><b>${new Date(s.date).toLocaleDateString()}</b><br>R$ ${s.price} | Lucro: <span style='color:${s.profit>=0?'#10b981':'red'}'>${s.profit.toFixed(2)}</span><br>${s.desc||''}</div>`).join(''):'Sem vendas'}
+}
+new App()
+</script>
+
+<!-- MANIFEST (criar arquivo separado) -->
+<!-- manifest.json -->
+<!--
+{
+  "name": "Dashboard de Vendas",
+  "short_name": "Vendas",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
+-->
+
+<!-- SERVICE WORKER (sw.js) -->
+<!--
+self.addEventListener('install',e=>{
+ e.waitUntil(caches.open('app').then(cache=>cache.addAll(['./','index.html'])))
+})
+self.addEventListener('fetch',e=>{
+ e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))
+})
+-->
+
+</body>
+</html>
