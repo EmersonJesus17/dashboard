@@ -223,16 +223,29 @@ class App{
     }
   }
   
-  async delete(id){
-    if(!confirm('🗑️ Excluir?')) return;
-    try{
-      await window.deleteDoc(window.doc(window.db, 'sales', id));
-      await this.render();
-    }catch(e){
-      console.error('Erro delete:', e);
-      alert('❌ Erro ao excluir');
+ async delete(id){
+  if(!confirm('🗑️ Excluir?')) return;
+
+  try{
+    const user = window.auth.currentUser;
+    if(!user){
+      alert('Faça login');
+      return;
     }
+
+    const ref = window.doc(window.db, 'sales', id);
+
+    await window.deleteDoc(ref);
+
+    console.log('✅ Deletado:', id);
+
+    await this.render();
+
+  }catch(e){
+    console.error('Erro delete:', e);
+    alert('❌ Erro ao excluir: ' + e.message);
   }
+}
   
   tab(e,t){
     document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
@@ -361,4 +374,4 @@ class App{
 }
 
 new App();
-</script>                               
+</script>                                
