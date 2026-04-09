@@ -7,11 +7,17 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
 
-<!-- Firebase CDN v12.11.0 -->
+<!-- 🔥 FIREBASE CDN v12.11.0 - CORRIGIDO ✅ -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js';
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js';
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
+  import { 
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
+  } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js';
+  import { 
+    getFirestore, 
+    collection, addDoc, getDocs, deleteDoc, doc, 
+    query, where, orderBy 
+  } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
 
   // SUA CONFIG ✅
   window.firebaseConfig = {
@@ -23,13 +29,23 @@
     appId: "1:316130119014:web:06150e15ec58751d048ca7"
   };
 
-  // Inicializa
+  // Inicializa Firebase
   window.appFirebase = initializeApp(window.firebaseConfig);
   window.auth = getAuth(window.appFirebase);
   window.db = getFirestore(window.appFirebase);
   window.googleProvider = new GoogleAuthProvider();
 
-  // FUNÇÕES GLOBAIS
+  // 🔥 CORREÇÃO: EXPORTA FUNÇÕES FIRESTORE PARA GLOBAL ✅
+  window.collection = collection;
+  window.addDoc = addDoc;
+  window.getDocs = getDocs;
+  window.deleteDoc = deleteDoc;
+  window.doc = doc;
+  window.query = query;
+  window.where = where;
+  window.orderBy = orderBy;
+
+  // Login Google
   window.loginGoogle = async () => {
     try {
       await signInWithPopup(window.auth, window.googleProvider);
@@ -38,6 +54,7 @@
     }
   };
 
+  // Logout
   window.logoutUser = async () => {
     try {
       await signOut(window.auth);
@@ -46,7 +63,7 @@
     }
   };
 
-  // Monitora login
+  // Monitora autenticação
   onAuthStateChanged(window.auth, async (user) => {
     const loginScreen = document.getElementById('loginScreen');
     const appScreen = document.getElementById('appScreen');
@@ -79,7 +96,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px}
 .card{background:#1f2937;padding:20px;border-radius:16px;box-shadow:0 8px 20px rgba(0,0,0,0.2)}
 input,select,textarea{width:100%;padding:12px;margin:8px 0;background:#111827;border:2px solid #374151;color:white;border-radius:10px;font-size:16px;transition:border-color 0.3s}
-input:focus,textarea:focus{outline:none;border-color:#10b981}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#10b981}
 button{padding:14px;border:none;border-radius:10px;background:linear-gradient(45deg,#10b981,#059669);color:white;font-weight:600;cursor:pointer;font-size:16px;transition:all 0.3s;width:100%}
 button:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(16,185,129,0.4)}
 button:disabled{background:#4b5563;cursor:not-allowed;transform:none}
@@ -92,7 +109,7 @@ button:disabled{background:#4b5563;cursor:not-allowed;transform:none}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px}
 .stat{background:#1e293b;padding:20px;border-radius:12px;text-align:center;font-weight:600;transition:transform 0.3s}
 .stat:hover{transform:translateY(-5px)}
-.loading{min-height:200px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:18px}
+.loading{min-height:200px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:18px;flex-direction:column;gap:10px}
 @media(max-width:768px){.grid{grid-template-columns:1fr}.header h1{font-size:1.8em}}
 </style>
 </head>
@@ -118,7 +135,7 @@ button:disabled{background:#4b5563;cursor:not-allowed;transform:none}
 <div class="header">
   <h1>💰 Dashboard</h1>
   <div class="user-info" id="userInfo">Carregando...</div>
-  <button class="logout-btn" onclick="logoutUser()">Sair</button>
+  <button class="logout-btn" onclick="logoutUser()">🚪 Sair</button>
 </div>
 
 <div class="grid">
@@ -169,7 +186,7 @@ class App{
   
   async add(){
     const btn=document.getElementById('saveBtn');
-    btn.disabled=true;btn.textContent='Salvando...';
+    btn.disabled=true;btn.textContent='⏳ Salvando...';
     
     try{
       const user=window.auth.currentUser;
@@ -191,24 +208,27 @@ class App{
       sale.profit=sale.price-sale.cost-sale.expense;
       sale.month=new Date(sale.date).toLocaleDateString('pt-BR',{month:'short',year:'numeric'});
       
-      await addDoc(collection(window.db,'sales'),sale);
+      // ✅ AGORA FUNCIONA - addDoc no escopo global
+      await window.addDoc(window.collection(window.db,'sales'),sale);
       document.getElementById('form').reset();
       await this.render();
+      alert('✅ Venda salva com sucesso!');
       
     }catch(e){
-      alert('Erro: '+e.message);
+      console.error(e);
+      alert('❌ Erro: '+e.message);
     }finally{
       btn.disabled=false;btn.textContent='💾 Salvar Venda';
     }
   }
   
   async delete(id){
-    if(!confirm('🗑️ Excluir venda?'))return;
+    if(!confirm('🗑️ Excluir esta venda permanentemente?'))return;
     try{
-      await deleteDoc(doc(window.db,'sales',id));
+      await window.deleteDoc(window.doc(window.db,'sales',id));
       await this.render();
     }catch(e){
-      alert('Erro ao excluir');
+      alert('❌ Erro ao excluir');
     }
   }
   
@@ -229,19 +249,19 @@ class App{
       const user=window.auth.currentUser;
       if(!user)return;
       
-      const q=query(
-        collection(window.db,'sales'),
-        where('userId','==',user.uid),
-        orderBy('date','desc')
+      const q=window.query(
+        window.collection(window.db,'sales'),
+        window.where('userId','==',user.uid),
+        window.orderBy('date','desc')
       );
-      const snapshot=await getDocs(q);
+      const snapshot=await window.getDocs(q);
       this.sales=snapshot.docs.map(d=>({id:d.id,...d.data()}));
     }catch(e){console.error(e);}
   }
   
   async render(){
     this.loading=true;
-    document.getElementById('sales').innerHTML='<div class="loading">⏳ Carregando vendas...</div>';
+    document.getElementById('sales').innerHTML='<div class="loading">⏳ Carregando vendas...<br><small>Sincronizando com a nuvem...</small></div>';
     await this.loadSales();
     this.renderStats();this.renderList();this.renderFilter();this.renderDashFilter();
     this.loading=false;
@@ -253,15 +273,15 @@ class App{
     const profit=data.reduce((a,b)=>a+b.profit,0);
     document.getElementById('stats').innerHTML=`
       <div class='stat'>📊<br>Vendas<br><b>${data.length}</b></div>
-      <div class='stat'>💰<br>R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
-      <div class='stat'>💵<br>R$ ${profit.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
-      <div class='stat'>📈<br>${total?((profit/total)*100).toFixed(1):0}%</div>`;
+      <div class='stat'>💰<br>R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class='stat'>💵<br>R$ ${profit.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class='stat'>📈<br>${total?((profit/total)*100).toFixed(1):0}%<br><small>de margem</small></div>`;
   }
   
   renderFilter(){
     const m=[...new Set(this.sales.map(s=>s.month))].sort().reverse();
     const filter=document.getElementById('filter');
-    filter.innerHTML='<option value="">📋 Todos</option>';
+    filter.innerHTML='<option value="">📋 Todos os meses</option>';
     m.forEach(x=>filter.innerHTML+=`<option value="${x}">${x}</option>`);
     filter.onchange=()=>this.renderList();
   }
@@ -269,7 +289,7 @@ class App{
   renderDashFilter(){
     const m=[...new Set(this.sales.map(s=>s.month))].sort().reverse();
     const dashFilter=document.getElementById('dashFilter');
-    dashFilter.innerHTML='<option value="">📊 Todos</option>';
+    dashFilter.innerHTML='<option value="">📊 Todos os meses</option>';
     m.forEach(x=>dashFilter.innerHTML+=`<option value="${x}">${x}</option>`);
     dashFilter.onchange=()=>this.renderStats();
   }
@@ -278,20 +298,28 @@ class App{
     const data=this.getFilteredData('filter');
     const salesEl=document.getElementById('sales');
     if(this.loading){
-      salesEl.innerHTML='<div class="loading">⏳ Carregando...</div>';return;
+      salesEl.innerHTML='<div class="loading">⏳ Carregando vendas...<br><small>Sincronizando com a nuvem...</small></div>';
+      return;
     }
     if(!data.length){
-      salesEl.innerHTML='<div style="text-align:center;padding:60px;color:#9ca3af"><h3>📭</h3><p>Nenhuma venda registrada</p><p>Adicione sua primeira venda! 🎯</p></div>';
+      salesEl.innerHTML='<div style="text-align:center;padding:60px;color:#9ca3af"><div style="font-size:4em;margin-bottom:20px">📭</div><h3>Nenhuma venda encontrada</h3><p>Adicione sua primeira venda acima! 🎯</p></div>';
       return;
     }
     salesEl.innerHTML=data.map(s=>`
       <div class='sale'>
         <button class='delete' onclick='app.delete("${s.id}")'>×</button>
-        <b>${new Date(s.date).toLocaleDateString('pt-BR')}</b><br>
-        <span style="font-size:1.3em">R$ ${s.price.toFixed(2)}</span><br>
-        Lucro: <span style='color:${s.profit>=0?'#10b981':'#ef4444'};font-weight:600;font-size:1.1em'>
-          ${s.profit.toFixed(2)}
-        </span><br>${s.desc||''}
+        <div style="font-size:1.3em;margin-bottom:8px">
+          ${new Date(s.date).toLocaleDateString('pt-BR')}
+        </div>
+        <div style="font-size:1.5em;font-weight:700;color:#10b981">
+          R$ ${s.price.toFixed(2)}
+        </div>
+        <div style="margin:10px 0;font-size:1.1em">
+          Lucro: <span style='color:${s.profit>=0?"#10b981":"#ef4444"};font-weight:700'>
+            R$ ${s.profit.toFixed(2)}
+          </span>
+        </div>
+        ${s.desc?`<div style="margin-top:12px;color:#94a3b8;font-style:italic">${s.desc}</div>`:''}
       </div>
     `).join('');
   }
@@ -299,5 +327,11 @@ class App{
 
 new App();
 </script>
-</body>
-</html>
+
+<!-- MANIFEST PWA -->
+<script>
+/*
+manifest.json:
+{
+  "name": "Dashboard Financeiro",
+  "short_name":
