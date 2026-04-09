@@ -4,149 +4,361 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard de Vendas</title>
-
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
 
+<!-- 🔥 FIREBASE CDN v12.11.0 - CORRIGIDO ✅ -->
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js';
+  import { 
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
+  } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js';
+  import { 
+    getFirestore, 
+    collection, addDoc, getDocs, deleteDoc, doc, 
+    query, where, orderBy 
+  } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCHpwH-HLrg76e-G8MbWEHuLvChqLQTk4Y",
-  authDomain: "dashboard-financeiro-66c1b.firebaseapp.com",
-  projectId: "dashboard-financeiro-66c1b"
-};
+  // SUA CONFIG ✅
+  window.firebaseConfig = {
+    apiKey: "AIzaSyCHpwH-HLrg76e-G8MbWEHuLvChqLQTk4Y",
+    authDomain: "dashboard-financeiro-66c1b.firebaseapp.com",
+    projectId: "dashboard-financeiro-66c1b",
+    storageBucket: "dashboard-financeiro-66c1b.firebasestorage.app",
+    messagingSenderId: "316130119014",
+    appId: "1:316130119014:web:06150e15ec58751d048ca7"
+  };
 
-const app = initializeApp(firebaseConfig);
-window.auth = getAuth(app);
-window.db = getFirestore(app);
-const provider = new GoogleAuthProvider();
+  // Inicializa Firebase
+  window.appFirebase = initializeApp(window.firebaseConfig);
+  window.auth = getAuth(window.appFirebase);
+  window.db = getFirestore(window.appFirebase);
+  window.googleProvider = new GoogleAuthProvider();
 
-window.loginGoogle = () => signInWithPopup(window.auth, provider);
-window.logoutUser = () => signOut(window.auth);
+  // 🔥 CORREÇÃO: EXPORTA FUNÇÕES FIRESTORE PARA GLOBAL ✅
+  window.collection = collection;
+  window.addDoc = addDoc;
+  window.getDocs = getDocs;
+  window.deleteDoc = deleteDoc;
+  window.doc = doc;
+  window.query = query;
+  window.where = where;
+  window.orderBy = orderBy;
 
-onAuthStateChanged(window.auth, (user) => {
-  document.getElementById('loginScreen').style.display = user ? 'none' : 'flex';
-  document.getElementById('appScreen').style.display = user ? 'block' : 'none';
-  if(user){
-    document.getElementById('userInfo').innerText = user.email;
-    if(window.app) window.app.render();
-  }
-});
+  // Login Google
+  window.loginGoogle = async () => {
+    try {
+      await signInWithPopup(window.auth, window.googleProvider);
+    } catch (error) {
+      alert('Erro no login: ' + error.message);
+    }
+  };
+
+  // Logout
+  window.logoutUser = async () => {
+    try {
+      await signOut(window.auth);
+    } catch (error) {
+      alert('Erro no logout: ' + error.message);
+    }
+  };
+
+  // Monitora autenticação
+  onAuthStateChanged(window.auth, async (user) => {
+    const loginScreen = document.getElementById('loginScreen');
+    const appScreen = document.getElementById('appScreen');
+    const userInfo = document.getElementById('userInfo');
+    
+    if (user) {
+      loginScreen.style.display = 'none';
+      appScreen.style.display = 'block';
+      userInfo.textContent = `Olá, ${user.displayName || user.email}`;
+      if (window.app) await window.app.render();
+    } else {
+      loginScreen.style.display = 'flex';
+      appScreen.style.display = 'none';
+    }
+  });
 </script>
 
 <style>
-body{font-family:sans-serif;background:#0f172a;color:white}
-.container{max-width:900px;margin:auto;padding:20px}
-.card{background:#1f2937;padding:15px;border-radius:10px;margin-top:10px}
-.sale{background:#111827;padding:10px;margin-top:10px;border-radius:10px;position:relative}
-.delete{position:absolute;right:10px;top:10px;background:red;border:none;color:white;border-radius:50%;width:30px;height:30px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#e2e8f0;min-height:100vh;padding:10px;display:flex;align-items:center;justify-content:center}
+.container{max-width:1200px;width:100%;background:#111827;border-radius:20px;padding:20px;box-shadow:0 20px 40px rgba(0,0,0,0.3)}
+.login-container{max-width:400px;text-align:center;padding:40px 20px}
+.login-btn{padding:15px 20px;border:none;border-radius:12px;background:linear-gradient(45deg,#4285f4,#34a853);color:white;font-weight:600;font-size:16px;cursor:pointer;margin:10px 0;width:100%;display:flex;align-items:center;justify-content:center;gap:12px;transition:all 0.3s}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(66,133,244,0.4)}
+#appScreen{display:none}
+.header{position:relative;text-align:center;margin-bottom:20px}
+.header h1{font-size:2.2em;margin-bottom:10px}
+.user-info{background:#1f2937;padding:12px;border-radius:12px;margin-bottom:15px;font-weight:500}
+.logout-btn{position:absolute;top:0;right:0;padding:8px 16px;background:#ef4444;border-radius:8px;font-size:14px;width:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px}
+.card{background:#1f2937;padding:20px;border-radius:16px;box-shadow:0 8px 20px rgba(0,0,0,0.2)}
+input,select,textarea{width:100%;padding:12px;margin:8px 0;background:#111827;border:2px solid #374151;color:white;border-radius:10px;font-size:16px;transition:border-color 0.3s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#10b981}
+button{padding:14px;border:none;border-radius:10px;background:linear-gradient(45deg,#10b981,#059669);color:white;font-weight:600;cursor:pointer;font-size:16px;transition:all 0.3s;width:100%}
+button:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(16,185,129,0.4)}
+button:disabled{background:#4b5563;cursor:not-allowed;transform:none}
+.tabs{display:flex;margin-bottom:15px;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+.tabs button{flex:1;padding:12px;background:#374151;border:none;color:white;font-weight:500;transition:all 0.3s}
+.tabs button.active{background:#10b981 !important;box-shadow:inset 0 2px 4px rgba(0,0,0,0.2)}
+.sale{background:#1e293b;padding:20px;margin:10px 0;border-radius:12px;position:relative;border-left:4px solid #10b981;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+.delete{position:absolute;right:15px;top:15px;background:#ef4444;border:none;color:white;border-radius:50%;width:35px;height:35px;font-size:18px;font-weight:bold;cursor:pointer;transition:all 0.3s}
+.delete:hover{background:#dc2626;transform:scale(1.1)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px}
+.stat{background:#1e293b;padding:20px;border-radius:12px;text-align:center;font-weight:600;transition:transform 0.3s}
+.stat:hover{transform:translateY(-5px)}
+.loading{min-height:200px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:18px;flex-direction:column;gap:10px}
+@media(max-width:768px){.grid{grid-template-columns:1fr}.header h1{font-size:1.8em}}
 </style>
 </head>
-
 <body>
-
-<div id="loginScreen">
-<button onclick="loginGoogle()">🔐 Login Google</button>
+<!-- TELA LOGIN -->
+<div id="loginScreen" class="container login-container">
+  <h1>💰 Dashboard Financeiro</h1>
+  <p style="margin:20px 0;color:#94a3b8">Acesse suas vendas com segurança</p>
+  <button class="login-btn" onclick="loginGoogle()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+    Entrar com Google
+  </button>
 </div>
 
-<div id="appScreen" style="display:none">
+<!-- APP PRINCIPAL -->
+<div id="appScreen">
 <div class="container">
+<div class="header">
+  <h1>💰 Dashboard</h1>
+  <div class="user-info" id="userInfo">Carregando...</div>
+  <button class="logout-btn" onclick="logoutUser()">🚪 Sair</button>
+</div>
 
-<h2 id="userInfo"></h2>
-<button onclick="logoutUser()">Sair</button>
-
+<div class="grid">
 <div class="card">
+<h2> Nova Venda</h2>
 <form id="form">
 <input type="date" id="date" required>
-<input type="number" id="price" placeholder="Vendido" required>
-<input type="number" id="cost" placeholder="Custo" required>
-<input type="number" id="expense" placeholder="Insumos">
-<button>Salvar</button>
+<input type="number" id="price" placeholder=" Vendido (R$)" required step="0.01">
+<input type="number" id="cost" placeholder=" Custo (R$)" required step="0.01">
+<input type="number" id="expense" placeholder=" Insumos (R$)" step="0.01">
+<textarea id="desc" placeholder=" Descrição (opcional)" maxlength="200"></textarea>
+<button type="submit" id="saveBtn">💾 Salvar Venda</button>
 </form>
 </div>
 
-<div id="sales"></div>
+<div class="card">
+<div class="tabs">
+<button class="active" onclick="app.tab(event,'dash')">📊 Dashboard</button>
+<button onclick="app.tab(event,'list')">📋 Extrato</button>
+</div>
 
+<div id="dash">
+<select id="dashFilter"></select>
+<div class="stats" id="stats"></div>
+</div>
+
+<div id="list" style="display:none">
+<select id="filter"></select>
+<div id="sales"></div>
+</div>
+</div>
+</div>
 </div>
 </div>
 
 <script>
+// Service Worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>null);
+}
+
 class App{
-constructor(){
-this.sales=[]
-window.app=this
-this.init()
+  constructor(){this.sales=[];this.loading=true;this.init();window.app=this;}
+  
+  async init(){
+    document.getElementById('form').onsubmit=(e)=>{e.preventDefault();this.add()};
+    await this.render();
+  }
+  
+  async add(){
+    const btn=document.getElementById('saveBtn');
+    btn.disabled=true;btn.textContent='⏳ Salvando...';
+    
+    try{
+      const user=window.auth.currentUser;
+      if(!user){throw new Error('Faça login primeiro');}
+      
+      const sale={
+        userId: user.uid,  // ✅ IMPORTANTE
+        date: document.getElementById('date').value,
+        price: parseFloat(document.getElementById('price').value),
+        cost: parseFloat(document.getElementById('cost').value),
+        expense: parseFloat(document.getElementById('expense').value) || 0,
+        desc: document.getElementById('desc').value,
+        profit: 0,
+        month: '',
+        createdAt: new Date().toISOString()
+      };
+      
+      sale.profit = sale.price - sale.cost - sale.expense;
+      sale.month = new Date(sale.date).toLocaleDateString('pt-BR',{month:'short',year:'numeric'});
+      
+      console.log('Salvando:', sale); // DEBUG
+      
+      await window.addDoc(window.collection(window.db, 'sales'), sale);
+      document.getElementById('form').reset();
+      await this.render();
+      
+    }catch(e){
+      console.error('Erro salvar:', e);
+      alert('❌ Erro: ' + e.message);
+    }finally{
+      btn.disabled=false;
+      btn.textContent='💾 Salvar Venda';
+    }
+  }
+  
+  async delete(id){
+    if(!confirm('🗑️ Excluir?')) return;
+    try{
+      await window.deleteDoc(window.doc(window.db, 'sales', id));
+      await this.render();
+    }catch(e){
+      console.error('Erro delete:', e);
+      alert('❌ Erro ao excluir');
+    }
+  }
+  
+  tab(e,t){
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById('dash').style.display = t==='dash' ? 'block' : 'none';
+    document.getElementById('list').style.display = t==='list' ? 'block' : 'none';
+  }
+  
+  getFilteredData(filterId){
+    const filterValue = document.getElementById(filterId).value;
+    return filterValue ? this.sales.filter(s => s.month === filterValue) : this.sales;
+  }
+  
+  // 🔥 CORRIGIDO: Carregamento robusto
+  async loadSales(){
+    try {
+      const user = window.auth.currentUser;
+      if (!user) {
+        console.log('Sem usuário logado');
+        return;
+      }
+      
+      console.log('Carregando vendas do usuário:', user.uid);
+      
+      // Query mais simples PRIMEIRO
+      const q = window.query(
+        window.collection(window.db, 'sales'),
+        window.where('userId', '==', user.uid)
+      );
+      
+      const snapshot = await window.getDocs(q);
+      console.log('Vendas encontradas:', snapshot.size);
+      
+      this.sales = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          profit: data.price - data.cost - (data.expense || 0)
+        };
+      });
+      
+      console.log('Sales carregadas:', this.sales.length);
+      
+    } catch (error) {
+      console.error('❌ ERRO loadSales:', error);
+      alert('Erro ao carregar vendas: ' + error.message);
+      this.sales = [];
+    }
+  }
+  
+  async render(){
+    console.log('🔄 Renderizando...');
+    this.loading = true;
+    document.getElementById('sales').innerHTML = '<div class="loading">🔄 Sincronizando...<br>Vendas: ' + this.sales.length + '</div>';
+    
+    await this.loadSales();
+    
+    this.renderStats();
+    this.renderList(); 
+    this.renderFilter();
+    this.renderDashFilter();
+    
+    this.loading = false;
+    console.log('✅ Render completo. Vendas:', this.sales.length);
+  }
+  
+  renderStats(){
+    const data = this.getFilteredData('dashFilter');
+    const total = data.reduce((a,b) => a + (b.price || 0), 0);
+    const profit = data.reduce((a,b) => a + (b.profit || 0), 0);
+    
+    document.getElementById('stats').innerHTML = `
+      <div class='stat'>📊<br><b>${data.length}</b><br>Vendas</div>
+      <div class='stat'>💰<br>R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}<br>Faturamento</div>
+      <div class='stat'>💵<br>R$ ${profit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}<br>Lucro</div>
+      <div class='stat'>📈<br>${total ? ((profit/total)*100).toFixed(1) : 0}%<br>Margem</div>`;
+  }
+  
+  renderFilter(){
+    const months = [...new Set(this.sales.map(s => s.month))].sort().reverse();
+    const filter = document.getElementById('filter');
+    filter.innerHTML = '<option value="">📋 Todos</option>';
+    months.forEach(month => {
+      filter.innerHTML += `<option value="${month}">${month}</option>`;
+    });
+    filter.onchange = () => this.renderList();
+  }
+  
+  renderDashFilter(){
+    const months = [...new Set(this.sales.map(s => s.month))].sort().reverse();
+    const dashFilter = document.getElementById('dashFilter');
+    dashFilter.innerHTML = '<option value="">📊 Todos</option>';
+    months.forEach(month => {
+      dashFilter.innerHTML += `<option value="${month}">${month}</option>`;
+    });
+    dashFilter.onchange = () => this.renderStats();
+  }
+  
+  renderList(){
+    const data = this.getFilteredData('filter');
+    const salesEl = document.getElementById('sales');
+    
+    if (this.loading) {
+      salesEl.innerHTML = '<div class="loading">⏳ Carregando...</div>';
+      return;
+    }
+    
+    if (!data.length) {
+      salesEl.innerHTML = '<div style="text-align:center;padding:60px;color:#9ca3af"><div style="font-size:4em;margin-bottom:20px">📭</div><p>Nenhuma venda<br>Adicione a primeira! 🎯</p></div>';
+      return;
+    }
+    
+    salesEl.innerHTML = data.map(s => `
+      <div class='sale'>
+        <button class='delete' onclick='app.delete("${s.id}")'>×</button>
+        <b>${new Date(s.date).toLocaleDateString('pt-BR')}</b><br>
+        <span style='font-size:1.4em;font-weight:700'>R$ ${s.price?.toFixed(2) || 0}</span><br>
+        Lucro: <span style='color:${s.profit >= 0 ? "#10b981" : "#ef4444"};font-weight:600;font-size:1.1em'>
+          R$ ${(s.profit || 0).toFixed(2)}
+        </span><br>
+        ${s.desc ? `<small style="color:#94a3b8">${s.desc}</small>` : ''}
+      </div>
+    `).join('');
+  }
 }
 
-init(){
-form.onsubmit=(e)=>{e.preventDefault();this.add()}
-}
-
-async add(){
-const user = window.auth.currentUser
-
-const sale={
-userId:user.uid,
-date:date.value,
-price:+price.value,
-cost:+cost.value,
-expense:+expense.value||0
-}
-
-sale.profit = sale.price - sale.cost - sale.expense
-
-await addDoc(collection(db,"sales"),sale)
-
-this.render()
-form.reset()
-}
-
-async load(){
-const user = window.auth.currentUser
-
-const q = query(collection(db,"sales"), where("userId","==",user.uid))
-const snap = await getDocs(q)
-
-this.sales = snap.docs.map(d=>({id:d.id,...d.data()}))
-}
-
-async delete(id){
-if(!confirm("Excluir?")) return
-
-try{
-const user = window.auth.currentUser
-if(!user) return alert("Faça login")
-
-await deleteDoc(doc(db,"sales",id))
-
-console.log("Deletado:", id)
-
-this.render()
-
-}catch(e){
-alert("Erro ao excluir: "+e.message)
-}
-}
-
-async render(){
-await this.load()
-
-sales.innerHTML = this.sales.map(s=>`
-<div class="sale">
-<button class='delete' onclick='app.delete("${s.id}")'>🗑️</button>
-<b>${new Date(s.date).toLocaleDateString()}</b><br>
-R$ ${s.price}<br>
-Lucro: ${s.profit}
-</div>
-`).join("")
-}
-}
-
-new App()
+new App();
 </script>
-
-</body>
-</html>
