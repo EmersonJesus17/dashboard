@@ -140,13 +140,13 @@ button:disabled{background:#4b5563;cursor:not-allowed;transform:none}
 
 <div class="grid">
 <div class="card">
-<h2>📈 Nova Venda</h2>
+<h2> Nova Venda</h2>
 <form id="form">
 <input type="date" id="date" required>
-<input type="number" id="price" placeholder="💵 Vendido (R$)" required step="0.01">
-<input type="number" id="cost" placeholder="💰 Custo (R$)" required step="0.01">
-<input type="number" id="expense" placeholder="📦 Insumos (R$)" step="0.01">
-<textarea id="desc" placeholder="📝 Descrição (opcional)" maxlength="200"></textarea>
+<input type="number" id="price" placeholder=" Vendido (R$)" required step="0.01">
+<input type="number" id="cost" placeholder=" Custo (R$)" required step="0.01">
+<input type="number" id="expense" placeholder=" Insumos (R$)" step="0.01">
+<textarea id="desc" placeholder=" Descrição (opcional)" maxlength="200"></textarea>
 <button type="submit" id="saveBtn">💾 Salvar Venda</button>
 </form>
 </div>
@@ -172,6 +172,7 @@ button:disabled{background:#4b5563;cursor:not-allowed;transform:none}
 </div>
 
 <script>
+// Service Worker
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>null);
 }
@@ -190,44 +191,45 @@ class App{
     
     try{
       const user=window.auth.currentUser;
-      if(!user) throw new Error('Faça login primeiro');
+      if(!user){throw new Error('Faça login primeiro');}
       
       const sale={
-        id:Date.now().toString(),
-        userId:user.uid,
-        date:document.getElementById('date').value,
-        price:+document.getElementById('price').value,
-        cost:+document.getElementById('cost').value,
-        expense:+document.getElementById('expense').value||0,
-        desc:document.getElementById('desc').value,
-        profit:0,
-        month:'',
-        createdAt:new Date().toISOString()
+        userId: user.uid,  // ✅ IMPORTANTE
+        date: document.getElementById('date').value,
+        price: parseFloat(document.getElementById('price').value),
+        cost: parseFloat(document.getElementById('cost').value),
+        expense: parseFloat(document.getElementById('expense').value) || 0,
+        desc: document.getElementById('desc').value,
+        profit: 0,
+        month: '',
+        createdAt: new Date().toISOString()
       };
       
-      sale.profit=sale.price-sale.cost-sale.expense;
-      sale.month=new Date(sale.date).toLocaleDateString('pt-BR',{month:'short',year:'numeric'});
+      sale.profit = sale.price - sale.cost - sale.expense;
+      sale.month = new Date(sale.date).toLocaleDateString('pt-BR',{month:'short',year:'numeric'});
       
-      // ✅ AGORA FUNCIONA - addDoc no escopo global
-      await window.addDoc(window.collection(window.db,'sales'),sale);
+      console.log('Salvando:', sale); // DEBUG
+      
+      await window.addDoc(window.collection(window.db, 'sales'), sale);
       document.getElementById('form').reset();
       await this.render();
-      alert('✅ Venda salva com sucesso!');
       
     }catch(e){
-      console.error(e);
-      alert('❌ Erro: '+e.message);
+      console.error('Erro salvar:', e);
+      alert('❌ Erro: ' + e.message);
     }finally{
-      btn.disabled=false;btn.textContent='💾 Salvar Venda';
+      btn.disabled=false;
+      btn.textContent='💾 Salvar Venda';
     }
   }
   
   async delete(id){
-    if(!confirm('🗑️ Excluir esta venda permanentemente?'))return;
+    if(!confirm('🗑️ Excluir?')) return;
     try{
-      await window.deleteDoc(window.doc(window.db,'sales',id));
+      await window.deleteDoc(window.doc(window.db, 'sales', id));
       await this.render();
     }catch(e){
+      console.error('Erro delete:', e);
       alert('❌ Erro ao excluir');
     }
   }
@@ -235,91 +237,124 @@ class App{
   tab(e,t){
     document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
     e.target.classList.add('active');
-    document.getElementById('dash').style.display=t==='dash'?'block':'none';
-    document.getElementById('list').style.display=t==='list'?'block':'none';
+    document.getElementById('dash').style.display = t==='dash' ? 'block' : 'none';
+    document.getElementById('list').style.display = t==='list' ? 'block' : 'none';
   }
   
-  getFilteredData(id){
-    const f=document.getElementById(id).value;
-    return f?this.sales.filter(s=>s.month===f):this.sales;
+  getFilteredData(filterId){
+    const filterValue = document.getElementById(filterId).value;
+    return filterValue ? this.sales.filter(s => s.month === filterValue) : this.sales;
   }
   
+  // 🔥 CORRIGIDO: Carregamento robusto
   async loadSales(){
-    try{
-      const user=window.auth.currentUser;
-      if(!user)return;
+    try {
+      const user = window.auth.currentUser;
+      if (!user) {
+        console.log('Sem usuário logado');
+        return;
+      }
       
-      const q=window.query(
-        window.collection(window.db,'sales'),
-        window.where('userId','==',user.uid),
-        window.orderBy('date','desc')
+      console.log('Carregando vendas do usuário:', user.uid);
+      
+      // Query mais simples PRIMEIRO
+      const q = window.query(
+        window.collection(window.db, 'sales'),
+        window.where('userId', '==', user.uid)
       );
-      const snapshot=await window.getDocs(q);
-      this.sales=snapshot.docs.map(d=>({id:d.id,...d.data()}));
-    }catch(e){console.error(e);}
+      
+      const snapshot = await window.getDocs(q);
+      console.log('Vendas encontradas:', snapshot.size);
+      
+      this.sales = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          profit: data.price - data.cost - (data.expense || 0)
+        };
+      });
+      
+      console.log('Sales carregadas:', this.sales.length);
+      
+    } catch (error) {
+      console.error('❌ ERRO loadSales:', error);
+      alert('Erro ao carregar vendas: ' + error.message);
+      this.sales = [];
+    }
   }
   
   async render(){
-    this.loading=true;
-    document.getElementById('sales').innerHTML='<div class="loading">⏳ Carregando vendas...<br><small>Sincronizando com a nuvem...</small></div>';
+    console.log('🔄 Renderizando...');
+    this.loading = true;
+    document.getElementById('sales').innerHTML = '<div class="loading">🔄 Sincronizando...<br>Vendas: ' + this.sales.length + '</div>';
+    
     await this.loadSales();
-    this.renderStats();this.renderList();this.renderFilter();this.renderDashFilter();
-    this.loading=false;
+    
+    this.renderStats();
+    this.renderList(); 
+    this.renderFilter();
+    this.renderDashFilter();
+    
+    this.loading = false;
+    console.log('✅ Render completo. Vendas:', this.sales.length);
   }
   
   renderStats(){
-    const data=this.getFilteredData('dashFilter');
-    const total=data.reduce((a,b)=>a+b.price,0);
-    const profit=data.reduce((a,b)=>a+b.profit,0);
-    document.getElementById('stats').innerHTML=`
-      <div class='stat'>📊<br>Vendas<br><b>${data.length}</b></div>
-      <div class='stat'>💰<br>R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-      <div class='stat'>💵<br>R$ ${profit.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-      <div class='stat'>📈<br>${total?((profit/total)*100).toFixed(1):0}%<br><small>de margem</small></div>`;
+    const data = this.getFilteredData('dashFilter');
+    const total = data.reduce((a,b) => a + (b.price || 0), 0);
+    const profit = data.reduce((a,b) => a + (b.profit || 0), 0);
+    
+    document.getElementById('stats').innerHTML = `
+      <div class='stat'>📊<br><b>${data.length}</b><br>Vendas</div>
+      <div class='stat'>💰<br>R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}<br>Faturamento</div>
+      <div class='stat'>💵<br>R$ ${profit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}<br>Lucro</div>
+      <div class='stat'>📈<br>${total ? ((profit/total)*100).toFixed(1) : 0}%<br>Margem</div>`;
   }
   
   renderFilter(){
-    const m=[...new Set(this.sales.map(s=>s.month))].sort().reverse();
-    const filter=document.getElementById('filter');
-    filter.innerHTML='<option value="">📋 Todos os meses</option>';
-    m.forEach(x=>filter.innerHTML+=`<option value="${x}">${x}</option>`);
-    filter.onchange=()=>this.renderList();
+    const months = [...new Set(this.sales.map(s => s.month))].sort().reverse();
+    const filter = document.getElementById('filter');
+    filter.innerHTML = '<option value="">📋 Todos</option>';
+    months.forEach(month => {
+      filter.innerHTML += `<option value="${month}">${month}</option>`;
+    });
+    filter.onchange = () => this.renderList();
   }
   
   renderDashFilter(){
-    const m=[...new Set(this.sales.map(s=>s.month))].sort().reverse();
-    const dashFilter=document.getElementById('dashFilter');
-    dashFilter.innerHTML='<option value="">📊 Todos os meses</option>';
-    m.forEach(x=>dashFilter.innerHTML+=`<option value="${x}">${x}</option>`);
-    dashFilter.onchange=()=>this.renderStats();
+    const months = [...new Set(this.sales.map(s => s.month))].sort().reverse();
+    const dashFilter = document.getElementById('dashFilter');
+    dashFilter.innerHTML = '<option value="">📊 Todos</option>';
+    months.forEach(month => {
+      dashFilter.innerHTML += `<option value="${month}">${month}</option>`;
+    });
+    dashFilter.onchange = () => this.renderStats();
   }
   
   renderList(){
-    const data=this.getFilteredData('filter');
-    const salesEl=document.getElementById('sales');
-    if(this.loading){
-      salesEl.innerHTML='<div class="loading">⏳ Carregando vendas...<br><small>Sincronizando com a nuvem...</small></div>';
+    const data = this.getFilteredData('filter');
+    const salesEl = document.getElementById('sales');
+    
+    if (this.loading) {
+      salesEl.innerHTML = '<div class="loading">⏳ Carregando...</div>';
       return;
     }
-    if(!data.length){
-      salesEl.innerHTML='<div style="text-align:center;padding:60px;color:#9ca3af"><div style="font-size:4em;margin-bottom:20px">📭</div><h3>Nenhuma venda encontrada</h3><p>Adicione sua primeira venda acima! 🎯</p></div>';
+    
+    if (!data.length) {
+      salesEl.innerHTML = '<div style="text-align:center;padding:60px;color:#9ca3af"><div style="font-size:4em;margin-bottom:20px">📭</div><p>Nenhuma venda<br>Adicione a primeira! 🎯</p></div>';
       return;
     }
-    salesEl.innerHTML=data.map(s=>`
+    
+    salesEl.innerHTML = data.map(s => `
       <div class='sale'>
         <button class='delete' onclick='app.delete("${s.id}")'>×</button>
-        <div style="font-size:1.3em;margin-bottom:8px">
-          ${new Date(s.date).toLocaleDateString('pt-BR')}
-        </div>
-        <div style="font-size:1.5em;font-weight:700;color:#10b981">
-          R$ ${s.price.toFixed(2)}
-        </div>
-        <div style="margin:10px 0;font-size:1.1em">
-          Lucro: <span style='color:${s.profit>=0?"#10b981":"#ef4444"};font-weight:700'>
-            R$ ${s.profit.toFixed(2)}
-          </span>
-        </div>
-        ${s.desc?`<div style="margin-top:12px;color:#94a3b8;font-style:italic">${s.desc}</div>`:''}
+        <b>${new Date(s.date).toLocaleDateString('pt-BR')}</b><br>
+        <span style='font-size:1.4em;font-weight:700'>R$ ${s.price?.toFixed(2) || 0}</span><br>
+        Lucro: <span style='color:${s.profit >= 0 ? "#10b981" : "#ef4444"};font-weight:600;font-size:1.1em'>
+          R$ ${(s.profit || 0).toFixed(2)}
+        </span><br>
+        ${s.desc ? `<small style="color:#94a3b8">${s.desc}</small>` : ''}
       </div>
     `).join('');
   }
@@ -327,11 +362,3 @@ class App{
 
 new App();
 </script>
-
-<!-- MANIFEST PWA -->
-<script>
-/*
-manifest.json:
-{
-  "name": "Dashboard Financeiro",
-  "short_name":
