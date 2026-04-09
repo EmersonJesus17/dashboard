@@ -11,66 +11,88 @@
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI';background:#0f172a;color:#e2e8f0;padding:10px}
-.container{max-width:1200px;margin:auto;background:#111827;border-radius:16px;padding:15px}
+body{font-family:'Segoe UI';background:#0f172a;color:#e2e8f0;padding:10px;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{max-width:1200px;margin:auto;background:#111827;border-radius:16px;padding:15px;display:none}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center}
+.login-btn{padding:15px 30px;border:none;border-radius:12px;background:#4285f4;color:white;font-weight:bold;font-size:16px;cursor:pointer;box-shadow:0 4px 15px rgba(66,133,244,0.3);transition:all 0.3s}
+.login-btn:hover{background:#3367d6;transform:translateY(-2px)}
+.login-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
 .header{text-align:center;margin-bottom:15px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 .card{background:#1f2937;padding:15px;border-radius:12px}
 input,select,textarea{width:100%;padding:10px;margin-top:5px;background:#111827;border:1px solid #374151;color:white;border-radius:8px}
 button{padding:12px;border:none;border-radius:8px;background:#10b981;color:white;font-weight:bold;cursor:pointer;width:100%}
+button:disabled{background:#4b5563;cursor:not-allowed}
 .tabs{display:flex;margin-bottom:10px}
 .tabs button{flex:1;background:#1f2937}
 .tabs button.active{background:#10b981}
 .sale{background:#111827;padding:15px;margin-top:10px;border-radius:10px;position:relative}
-.delete{position:absolute;right:10px;top:10px;background:red;border:none;color:white;border-radius:50%;width:30px;height:30px}
+.delete{position:absolute;right:10px;top:10px;background:red;border:none;color:white;border-radius:50%;width:30px;height:30px;cursor:pointer}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .stat{background:#111827;padding:10px;border-radius:10px;text-align:center}
+.user-info{position:fixed;top:20px;right:20px;background:#1f2937;padding:10px;border-radius:8px;font-size:14px}
+.logout-btn{background:#ef4444;margin-top:5px;padding:5px 10px;font-size:12px}
 @media(max-width:768px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<button onclick="login()">🔐 Entrar com Google</button>
-<div class="container">
-<div class="header"><h1>💰 Dashboard</h1></div>
-<div class="grid">
-
-<div class="card">
-<h2>Nova Venda</h2>
-<form id="form">
-<input type="date" id="date" required>
-<input type="number" id="price" placeholder="Vendido" required>
-<input type="number" id="cost" placeholder="Custo" required>
-<input type="number" id="expense" placeholder="Insumos">
-<textarea id="desc" placeholder="Descrição"></textarea>
-<button>Salvar</button>
-</form>
+<!-- Tela de Login -->
+<div class="login-screen" id="loginScreen">
+  <h1 style="font-size:2.5em;margin-bottom:20px">💰 Dashboard de Vendas</h1>
+  <p style="margin-bottom:30px;font-size:1.2em">Faça login para continuar</p>
+  <button class="login-btn" id="loginBtn" onclick="login()">
+    🔐 Entrar com Google
+  </button>
+  <div style="margin-top:20px;color:#94a3b8">
+    <div id="loginStatus"></div>
+  </div>
 </div>
 
-<div class="card">
-<div class="tabs">
-<button class="active" onclick="app.tab(event,'dash')">Dashboard</button>
-<button onclick="app.tab(event,'list')">Extrato</button>
-</div>
+<!-- Dashboard Principal -->
+<div class="container" id="dashboard">
+  <div class="user-info" id="userInfo">
+    <div id="userEmail"></div>
+    <button class="logout-btn" onclick="logout()">Sair</button>
+  </div>
+  
+  <div class="header"><h1>💰 Dashboard</h1></div>
+  <div class="grid">
 
-<div id="dash">
-<select id="dashFilter"></select>
-<div class="stats" id="stats"></div>
-</div>
+    <div class="card">
+      <h2>Nova Venda</h2>
+      <form id="form">
+        <input type="date" id="date" required>
+        <input type="number" id="price" placeholder="Vendido" step="0.01" required>
+        <input type="number" id="cost" placeholder="Custo" step="0.01" required>
+        <input type="number" id="expense" placeholder="Insumos" step="0.01">
+        <textarea id="desc" placeholder="Descrição" rows="3"></textarea>
+        <button type="submit" id="saveBtn">Salvar</button>
+      </form>
+    </div>
 
-<div id="list" style="display:none">
-<select id="filter"></select>
-<div id="sales"></div>
-</div>
+    <div class="card">
+      <div class="tabs">
+        <button class="active" onclick="app.tab(event,'dash')">Dashboard</button>
+        <button onclick="app.tab(event,'list')">Extrato</button>
+      </div>
 
-</div>
-</div>
-</div>
+      <div id="dash">
+        <select id="dashFilter"></select>
+        <div class="stats" id="stats"></div>
+      </div>
 
+      <div id="list" style="display:none">
+        <select id="filter"></select>
+        <div id="sales"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 // CONFIG
 const firebaseConfig = {
@@ -82,130 +104,199 @@ const firebaseConfig = {
   appId: "1:316130119014:web:06150e15ec58751d048ca7"
 };
 
-  console.log("rodando firebase");
 const appFirebase = initializeApp(firebaseConfig);
 const auth = getAuth(appFirebase);
 const db = getFirestore(appFirebase);
 const provider = new GoogleAuthProvider();
 
+// Elementos DOM
+const loginScreen = document.getElementById('loginScreen');
+const dashboard = document.getElementById('dashboard');
+const loginBtn = document.getElementById('loginBtn');
+const loginStatus = document.getElementById('loginStatus');
+const userEmail = document.getElementById('userEmail');
+
 // LOGIN
 window.login = async () => {
-  await signInWithPopup(auth, provider);
+  loginBtn.disabled = true;
+  loginBtn.textContent = '🔄 Carregando...';
+  loginStatus.textContent = 'Conectando com Google...';
+  
+  try {
+    const result = await signInWithPopup(auth, provider);
+    console.log('Login bem-sucedido:', result.user);
+  } catch (error) {
+    console.error('Erro no login:', error);
+    loginStatus.textContent = 'Erro no login: ' + error.message;
+    loginBtn.textContent = '🔐 Entrar com Google';
+    loginBtn.disabled = false;
+  }
 };
 
-// APP
-class App{
-constructor(){
-this.sales=[]
-window.app=this
+// LOGOUT
+window.logout = async () => {
+  await signOut(auth);
+};
 
-onAuthStateChanged(auth,(user)=>{
-  if(user){
-    this.load()
-  }else{
-    alert("Faça login")
+// Monitora estado de autenticação
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    // Usuário logado
+    loginScreen.style.display = 'none';
+    dashboard.style.display = 'block';
+    userEmail.textContent = user.email;
+    
+    // Inicializa app se ainda não foi
+    if (!window.app) {
+      window.app = new App();
+    } else {
+      window.app.load();
+    }
+  } else {
+    // Não logado
+    loginScreen.style.display = 'flex';
+    dashboard.style.display = 'none';
+    loginBtn.textContent = '🔐 Entrar com Google';
+    loginBtn.disabled = false;
+    loginStatus.textContent = '';
   }
-})
+});
 
-this.init()
+// APP
+class App {
+  constructor() {
+    this.sales = [];
+    window.app = this;
+    this.init();
+  }
+
+  init() {
+    document.getElementById('form').onsubmit = (e) => {
+      e.preventDefault();
+      this.add();
+    };
+  }
+
+  async add() {
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Salvando...';
+
+    try {
+      let s = {
+        date: document.getElementById('date').value,
+        price: +document.getElementById('price').value,
+        cost: +document.getElementById('cost').value,
+        expense: +document.getElementById('expense').value || 0,
+        desc: document.getElementById('desc').value,
+        userId: auth.currentUser.uid // Adiciona userId para segurança
+      };
+      s.profit = s.price - s.cost - s.expense;
+      s.month = new Date(s.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+
+      await addDoc(collection(db, "sales"), s);
+      this.load();
+      document.getElementById('form').reset();
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      alert('Erro ao salvar venda: ' + error.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Salvar';
+    }
+  }
+
+  async load() {
+    try {
+      // Filtra apenas vendas do usuário atual
+      const q = query(
+        collection(db, "sales"),
+        where("userId", "==", auth.currentUser.uid),
+        orderBy("date", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      this.sales = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.render();
+    } catch (error) {
+      console.error('Erro ao carregar:', error);
+    }
+  }
+
+  async delete(id) {
+    if (confirm('Excluir esta venda?')) {
+      try {
+        await deleteDoc(doc(db, "sales", id));
+        this.load();
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
+        alert('Erro ao excluir venda');
+      }
+    }
+  }
+
+  tab(e, t) {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById('dash').style.display = t === 'dash' ? 'block' : 'none';
+    document.getElementById('list').style.display = t === 'list' ? 'block' : 'none';
+  }
+
+  getFilteredData(id) {
+    let f = document.getElementById(id).value;
+    return f ? this.sales.filter(s => s.month === f) : this.sales;
+  }
+
+  render() {
+    this.renderStats();
+    this.renderList();
+    this.renderFilter();
+    this.renderDashFilter();
+  }
+
+  renderStats() {
+    let data = this.getFilteredData('dashFilter');
+    let total = data.reduce((a, b) => a + b.price, 0);
+    let profit = data.reduce((a, b) => a + b.profit, 0);
+
+    document.getElementById('stats').innerHTML = `
+      <div class='stat'>Vendas<br>${data.length}</div>
+      <div class='stat'>Faturamento<br>R$ ${total.toFixed(2)}</div>
+      <div class='stat'>Lucro<br>R$ ${profit.toFixed(2)}</div>
+      <div class='stat'>%<br>${total ? ((profit / total) * 100).toFixed(1) : 0}%</div>
+    `;
+  }
+
+  renderFilter() {
+    let m = [...new Set(this.sales.map(s => s.month))].sort();
+    let filter = document.getElementById('filter');
+    filter.innerHTML = '<option value="">Todos</option>';
+    m.forEach(x => filter.innerHTML += `<option>${x}</option>`);
+    filter.onchange = () => this.renderList();
+  }
+
+  renderDashFilter() {
+    let m = [...new Set(this.sales.map(s => s.month))].sort();
+    let dashFilter = document.getElementById('dashFilter');
+    dashFilter.innerHTML = '<option value="">Todos</option>';
+    m.forEach(x => dashFilter.innerHTML += `<option>${x}</option>`);
+    dashFilter.onchange = () => this.renderStats();
+  }
+
+  renderList() {
+    let data = this.getFilteredData('filter');
+    let salesDiv = document.getElementById('sales');
+    salesDiv.innerHTML = data.length ? data.map(s => `
+      <div class='sale'>
+        <button class='delete' onclick='app.delete("${s.id}")'>×</button>
+        <b>${new Date(s.date).toLocaleDateString('pt-BR')}</b><br>
+        R$ ${s.price.toFixed(2)} | Lucro:
+        <span style='color:${s.profit >= 0 ? '#10b981' : 'red'}'>
+          R$ ${s.profit.toFixed(2)}
+        </span><br>${s.desc || ''}
+      </div>
+    `).join('') : '<div style="text-align:center;padding:20px;color:#94a3b8">Sem vendas</div>';
+  }
 }
-
-init(){
-document.getElementById('form').onsubmit=(e)=>{e.preventDefault();this.add()}
-}
-
-async add(){
-let s={
-  date:date.value,
-  price:+price.value,
-  cost:+cost.value,
-  expense:+expense.value||0,
-  desc:desc.value
-}
-s.profit=s.price-s.cost-s.expense
-s.month=new Date(s.date).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})
-
-await addDoc(collection(db,"sales"),s)
-
-this.load()
-form.reset()
-}
-
-async load(){
-const querySnapshot = await getDocs(collection(db,"sales"))
-this.sales = querySnapshot.docs.map(d=>({id:d.id,...d.data()}))
-this.render()
-}
-
-async delete(id){
-if(confirm('Excluir?')){
-  await deleteDoc(doc(db,"sales",id))
-  this.load()
-}
-}
-
-tab(e,t){
-document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'))
-e.target.classList.add('active')
-dash.style.display=t==='dash'?'block':'none'
-list.style.display=t==='list'?'block':'none'
-}
-
-getFilteredData(id){
-let f=document.getElementById(id).value
-return f?this.sales.filter(s=>s.month===f):this.sales
-}
-
-render(){
-this.renderStats()
-this.renderList()
-this.renderFilter()
-this.renderDashFilter()
-}
-
-renderStats(){
-let data=this.getFilteredData('dashFilter')
-let total=data.reduce((a,b)=>a+b.price,0)
-let profit=data.reduce((a,b)=>a+b.profit,0)
-
-stats.innerHTML=`
-<div class='stat'>Vendas<br>${data.length}</div>
-<div class='stat'>Faturamento<br>R$ ${total.toFixed(2)}</div>
-<div class='stat'>Lucro<br>R$ ${profit.toFixed(2)}</div>
-<div class='stat'>%<br>${total?((profit/total)*100).toFixed(1):0}%</div>
-`
-}
-
-renderFilter(){
-let m=[...new Set(this.sales.map(s=>s.month))]
-filter.innerHTML='<option value="">Todos</option>'
-m.forEach(x=>filter.innerHTML+=`<option>${x}</option>`)
-filter.onchange=()=>this.renderList()
-}
-
-renderDashFilter(){
-let m=[...new Set(this.sales.map(s=>s.month))]
-dashFilter.innerHTML='<option value="">Todos</option>'
-m.forEach(x=>dashFilter.innerHTML+=`<option>${x}</option>`)
-dashFilter.onchange=()=>this.renderStats()
-}
-
-renderList(){
-let data=this.getFilteredData('filter')
-sales.innerHTML=data.length?data.map(s=>`
-<div class='sale'>
-<button class='delete' onclick='app.delete("${s.id}")'>x</button>
-<b>${new Date(s.date).toLocaleDateString()}</b><br>
-R$ ${s.price} | Lucro:
-<span style='color:${s.profit>=0?'#10b981':'red'}'>
-${s.profit.toFixed(2)}
-</span><br>${s.desc||''}
-</div>
-`).join(''):'Sem vendas'
-}
-}
-
-new App()
 </script>
 </body>
 </html>
